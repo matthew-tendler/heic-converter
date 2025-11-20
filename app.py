@@ -9,21 +9,12 @@ import io
 
 # Register HEIF opener with Pillow
 register_heif_opener()
+__version__ = "0.1.0"
 
 st.set_page_config(page_title="HEIC Converter", page_icon="🖼️", layout="wide")
 
 st.title("🖼️ HEIC to PNG/JPG Converter")
 st.markdown("Upload HEIC files and convert them to PNG or JPG format with customizable quality settings.")
-
-def get_common_directories():
-    """Get a list of common directory paths."""
-    home = os.path.expanduser("~")
-    return {
-        "Downloads": os.path.join(home, "Downloads"),
-        "Desktop": os.path.join(home, "Desktop"),
-        "Documents": os.path.join(home, "Documents"),
-        "Home": home,
-    }
 
 # Sidebar for settings
 with st.sidebar:
@@ -48,26 +39,9 @@ with st.sidebar:
         quality = None
         st.info("PNG format is lossless and doesn't use quality settings.")
     
-    st.divider()
     st.markdown("### 📁 Save Location")
-    if "save_directory" not in st.session_state:
-        st.session_state.save_directory = ""
-
-    save_location = st.text_input(
-        "Save Directory",
-        key="save_directory",
-        placeholder="Enter a folder path (e.g., ~/Downloads)",
-        help="Directory where the zip file will be saved"
-    )
-    
-    st.markdown("**Quick Select:**")
-    common_dirs = get_common_directories()
-    cols = st.columns(len(common_dirs))
-    for idx, (name, path) in enumerate(common_dirs.items()):
-        with cols[idx]:
-            if st.button(f"📂 {name}", use_container_width=True, key=f"dir_{name}"):
-                st.session_state.save_directory = path
-                st.rerun()
+    save_location = os.path.expanduser("~/Downloads")
+    st.info(f"📁 Files will be saved to: {save_location}")
 
 # Main content area
 uploaded_files = st.file_uploader(
@@ -157,9 +131,13 @@ if uploaded_files:
                             zip_path = os.path.join(save_location, zip_filename)
                             counter += 1
                         
-                        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-                            for file_path, filename in converted_files:
-                                zipf.write(file_path, filename)
+                        try:
+                            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                                for file_path, filename in converted_files:
+                                    zipf.write(file_path, filename)
+                        except Exception as e:
+                            st.error(f"❌ Failed to create zip file: {e}")
+                            st.stop()
                         
                         # Success message
                         st.success(f"✅ Conversion complete! {len(converted_files)} file(s) converted.")
