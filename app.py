@@ -39,9 +39,8 @@ with st.sidebar:
         quality = None
         st.info("PNG format is lossless and doesn't use quality settings.")
     
-    st.markdown("### 📁 Save Location")
-    save_location = os.path.expanduser("~/Downloads")
-    st.info(f"📁 Files will be saved to: {save_location}")
+    st.markdown("### ℹ️ How it works")
+    st.info("After conversion, click the Download button to save the zip file to your computer. You'll be able to choose where to save it.")
 
 # Main content area
 uploaded_files = st.file_uploader(
@@ -116,51 +115,70 @@ if uploaded_files:
                 status_text.text("Creating zip file...")
                 
                 if converted_files:
-                    # Create zip file
+                    # Create zip file in memory
+                    zip_buffer = io.BytesIO()
                     zip_filename = f"heic_converted_{output_format.lower()}.zip"
-                    zip_path = os.path.join(save_location, zip_filename)
-                    
-                    # Handle duplicate filenames
-                    counter = 1
-                    while os.path.exists(zip_path):
-                        zip_filename = f"heic_converted_{output_format.lower()}_{counter}.zip"
-                        zip_path = os.path.join(save_location, zip_filename)
-                        counter += 1
                     
                     try:
-                        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zipf:
                             for file_path, filename in converted_files:
                                 zipf.write(file_path, filename)
+                        
+                        # Get zip file size
+                        zip_size = len(zip_buffer.getvalue()) / (1024 * 1024)  # MB
+                        
+                        # Store zip data in session state for download
+                        st.session_state.zip_data = zip_buffer.getvalue()
+                        st.session_state.zip_filename = zip_filename
+                        st.session_state.conversion_complete = True
+                        st.session_state.converted_count = len(converted_files)
+                        st.session_state.zip_size = zip_size
+                        st.session_state.conversion_errors = errors
+                        st.session_state.output_format = output_format
+                        
                     except Exception as e:
                         st.error(f"❌ Failed to create zip file: {e}")
-                        st.stop()
-                    
-                    # Success message
-                    st.success(f"✅ Conversion complete! {len(converted_files)} file(s) converted.")
-                    st.info(f"📦 Zip file saved to: `{zip_path}`")
-                    
-                    # Display file size
-                    zip_size = os.path.getsize(zip_path) / (1024 * 1024)  # MB
-                    st.metric("Zip File Size", f"{zip_size:.2f} MB")
-                    
-                    # Download button
-                    with open(zip_path, 'rb') as f:
-                        st.download_button(
-                            label="📥 Download Zip File",
-                            data=f.read(),
-                            file_name=zip_filename,
-                            mime="application/zip",
-                            use_container_width=True
-                        )
+                        st.session_state.conversion_complete = False
                 else:
                     st.error("❌ No files were successfully converted.")
+                    st.session_state.conversion_complete = False
                 
-                if errors:
-                    with st.expander("⚠️ Errors"):
-                        for error in errors:
-                            st.text(error)
+                # Clear progress indicators
+                progress_bar.empty()
+                status_text.empty()
 
-else:
+# Show download section if conversion is complete
+if st.session_state.get("conversion_complete", False):
+    st.divider()
+    output_format_used = st.session_state.get("output_format", "PNG/JPG")
+    st.success(f"✅ Conversion complete! {st.session_state.get('converted_count', 0)} file(s) converted to {output_format_used}.")
+    
+    # Display file size
+    st.metric("Zip File Size", f"{st.session_state.get('zip_size', 0):.2f} MB")
+    
+    # Prominent download button
+    st.markdown("### 📥 Download Your Files")
+    st.info("Click the button below to download your converted files. You'll be able to choose where to save the zip file on your computer.")
+    
+    if st.download_button(
+        label=f"📥 Download {st.session_state.get('zip_filename', 'converted_files.zip')}",
+        data=st.session_state.get("zip_data", b""),
+        file_name=st.session_state.get("zip_filename", "heic_converted.zip"),
+        mime="application/zip",
+        use_container_width=True,
+        type="primary"
+    ):
+        st.balloons()
+        st.success("Download started! Check your browser's download folder or the location you selected.")
+    
+    # Show errors if any
+    errors = st.session_state.get("conversion_errors", [])
+    if errors:
+        with st.expander("⚠️ Conversion Errors"):
+            for error in errors:
+                st.text(error)
+
+elif not uploaded_files:
     st.info("👆 Please upload one or more HEIC files to get started.")
 
 # Footer
