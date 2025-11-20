@@ -65,3 +65,4 @@ streamlit run app.py
 - Transparent images will be converted to white background when saving as JPG
 - The app automatically handles duplicate zip filenames by appending a counter
 
+# heic-converter
