@@ -15,21 +15,15 @@ st.set_page_config(page_title="HEIC Converter", page_icon="🖼️", layout="wid
 st.title("🖼️ HEIC to PNG/JPG Converter")
 st.markdown("Upload HEIC files and convert them to PNG or JPG format with customizable quality settings.")
 
-def choose_directory(initial_dir: str) -> str:
-    """Open a native folder picker and return the selected path or an empty string."""
-    try:
-        import tkinter as tk
-        from tkinter import filedialog
-        root = tk.Tk()
-        root.withdraw()
-        root.attributes("-topmost", True)
-        directory = filedialog.askdirectory(initialdir=initial_dir)
-        root.destroy()
-        return directory
-    except Exception:
-        # If the picker fails (e.g., no GUI), fall back to manual entry.
-        st.warning("Unable to open folder picker. Please type the directory manually.")
-        return ""
+def get_common_directories():
+    """Get a list of common directory paths."""
+    home = os.path.expanduser("~")
+    return {
+        "Downloads": os.path.join(home, "Downloads"),
+        "Desktop": os.path.join(home, "Desktop"),
+        "Documents": os.path.join(home, "Documents"),
+        "Home": home,
+    }
 
 # Sidebar for settings
 with st.sidebar:
@@ -59,20 +53,20 @@ with st.sidebar:
     if "save_directory" not in st.session_state:
         st.session_state.save_directory = ""
 
-    col1, col2 = st.columns([3, 2], gap="small")
-    with col1:
-        save_location = st.text_input(
-            "Save Directory",
-            key="save_directory",
-            placeholder="Select or enter a folder path",
-            help="Directory where the zip file will be saved"
-        )
-    with col2:
-        if st.button("📂 Choose Folder", use_container_width=True):
-            selected_dir = choose_directory(os.path.expanduser("~/Downloads"))
-            if selected_dir:
-                st.session_state.save_directory = selected_dir
-                save_location = selected_dir
+    save_location = st.text_input(
+        "Save Directory",
+        key="save_directory",
+        placeholder="Enter a folder path (e.g., ~/Downloads)",
+        help="Directory where the zip file will be saved"
+    )
+    
+    st.markdown("**Quick Select:**")
+    common_dirs = get_common_directories()
+    cols = st.columns(len(common_dirs))
+    for idx, (name, path) in enumerate(common_dirs.items()):
+        with cols[idx]:
+            if st.button(f"📂 {name}", use_container_width=True, key=f"dir_{name}"):
+                st.session_state.save_directory = path
                 st.rerun()
 
 # Main content area
@@ -205,4 +199,3 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
-# test change
